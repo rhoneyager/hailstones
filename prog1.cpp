@@ -14,7 +14,7 @@
 #include <vtkTransform.h>
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkTriangleFilter.h>
-#include <vtkXMLStructuredGridWriter.h>
+#include <vtkXMLImageDataWriter.h>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 		po::options_description desc("Allowed options");
 		desc.add_options()
 			("help,h", "Produce this help message.")
-			("resolution,r", po::value<double>()->default_value(0.4), "Resolution of output mesh lattices (mm).")
+			("resolution,r", po::value<double>()->default_value(1.0), "Resolution of output mesh lattices (mm).")
 			("input,i", po::value<vector<string> >()->multitoken(), "Input stl files.")
 			("output,o", po::value<string>()->default_value("."), "Output folder.")
 			("clobber,c", "Overwrite existing files.")
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
 			double contouredVol_cm3, contouredMass_g, discretized_volume_cm3;
 			double actual_bounds[6], mesh_bounds[6], actual_bound_volume_cm3;
 			double vf_contoured_boxed, resolution_mm, aeff_um;
-			size_t numIceLatticeSites;
+			size_t numIceLatticeSites, numLatticeSites;
 			std::string sIn, sOut, sFileId;
 			static void writeHeader(std::ostream &out) {
 				out << "ID,contouredVol_cm3,contouredMass_g,discretized_volume_cm3,"
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 					"mesh_bounds[x_min](mm),mesh_bounds[x_max](mm),mesh_bounds[y_min](mm),"
 					"mesh_bounds[y_max](mm),mesh_bounds[z_min](mm),mesh_bounds[z_max](mm),"
 					"actual_bound_volume_cm3,vf_contoured_boxed,resolution_mm,aeff_um,"
-					"numIceLatticeSites" << endl;
+					"numLatticeSites,numIceLatticeSites" << endl;
 			}
 			void write(std::ostream &out) {
 				out << sFileId << "," << contouredVol_cm3 << "," << contouredMass_g << "," << discretized_volume_cm3 << ","
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
 					<< mesh_bounds[0] << "," << mesh_bounds[1] << "," << mesh_bounds[2] << ","
 					<< mesh_bounds[3] << "," << mesh_bounds[4] << "," << mesh_bounds[5] << ","
 					<< actual_bound_volume_cm3 << "," << vf_contoured_boxed << "," << resolution_mm << ","
-					<< aeff_um << "," << numIceLatticeSites << endl;
+					<< aeff_um << "," << numLatticeSites << "," << numIceLatticeSites << endl;
 			}
 		};
 		path pOutAnalysis = pOutFolder / path("analysis.csv");
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
 
 		for (const auto &i : vInputs) {
 			path p(i);
-			path pOut = pOutFolder / p.filename().replace_extension(path(".vtp"));
+			path pOut = pOutFolder / p.filename().replace_extension(path(".vti"));
 			cout << "\t" << p << " to " << pOut << endl;
 			if (exists(pOut) && !clobber) {
 				cout << "\t\tFile already exists. Skipping." << endl;
@@ -155,20 +155,24 @@ int main(int argc, char** argv) {
 				vtkSmartPointer<vtkMassProperties>::New();
 			massProps->SetInputConnection(triangleFilter->GetOutputPort());
 			massProps->Update();
-			data.contouredVol_cm3 = massProps->GetVolume() / std::pow(10, 3);
+
+			data.contouredVol_cm3 = massProps->GetVolume();
+			data.contouredVol_cm3 /= std::pow(10., 3.);
 			data.contouredMass_g = data.contouredVol_cm3 / den_ice_g_cm3;
 
 			// Translate mesh so that the min point is located at (2,2,2). Needed for ddscat.
 
 			vtkSmartPointer<vtkTransform> translation =
 				vtkSmartPointer<vtkTransform>::New();
-			translation->Translate(2.-data.actual_bounds[0], 2. - data.actual_bounds[1], 2. - data.actual_bounds[1]);
-			pd->GetBounds(data.actual_bounds);
+			translation->Translate(2.-data.actual_bounds[0], 2. - data.actual_bounds[2], 2. - data.actual_bounds[4]);
 			vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter =
 				vtkSmartPointer<vtkTransformPolyDataFilter>::New();
 			transformFilter->SetInputConnection(reader->GetOutputPort());
 			transformFilter->SetTransform(translation);
 			transformFilter->Update();
+			vtkSmartPointer<vtkPolyData> pt = transformFilter->GetOutput();
+			pt->GetBounds(data.actual_bounds);
+			
 			data.resolution_mm = resolution_mm;
 
 			// Convert contoured surface to volume representation
@@ -219,12 +223,12 @@ int main(int argc, char** argv) {
 				{
 					whiteImage->GetPointData()->GetScalars()->SetTuple1(i, inval);
 				}
-				data.numIceLatticeSites = (size_t)count;
+				data.numLatticeSites = (size_t)count;
 
 				// polygonal data --> image stencil:
 				vtkSmartPointer<vtkPolyDataToImageStencil> pol2stenc =
 					vtkSmartPointer<vtkPolyDataToImageStencil>::New();
-				pol2stenc->SetInputData(pd);
+				pol2stenc->SetInputData(pt);
 				pol2stenc->SetOutputOrigin(origin);
 				pol2stenc->SetOutputSpacing(spacing);
 				pol2stenc->SetOutputWholeExtent(whiteImage->GetExtent());
@@ -239,14 +243,31 @@ int main(int argc, char** argv) {
 				imgstenc->SetBackgroundValue(outval);
 				imgstenc->Update();
 
-				vtkSmartPointer<vtkImageDataToPointSet> imageDataToPointSet =
-					vtkSmartPointer<vtkImageDataToPointSet>::New();
-				imageDataToPointSet->SetInputConnection(imgstenc->GetOutputPort());
-				imageDataToPointSet->Update();
+				// Determine the number of filled points on the grid
+				vtkSmartPointer<vtkImageData> imgd = imgstenc->GetOutput();
+				//int* dims = imgd->GetDimensions();
+				// int dims[3]; // can't do this
+				data.numIceLatticeSites = 0;
+				//std::cout << "Dims: " << " x: " << dims[0] << " y: " << dims[1] << " z: " << dims[2] << std::endl;
 
-				vtkSmartPointer<vtkXMLStructuredGridWriter> writer =
-					vtkSmartPointer<vtkXMLStructuredGridWriter>::New();
-				writer->SetInputConnection(imageDataToPointSet->GetOutputPort());
+				//std::cout << "Number of points: " << imgd->GetNumberOfPoints() << std::endl;
+				//std::cout << "Number of cells: " << imgd->GetNumberOfCells() << std::endl;
+
+				for (int z = 0; z < dim[2]; z++)
+				{
+					for (int y = 0; y < dim[1]; y++)
+					{
+						for (int x = 0; x < dim[0]; x++)
+						{
+							double pixel = (imgd->GetScalarComponentAsDouble(x, y, z, 0));
+							if (pixel > 0.1) data.numIceLatticeSites++;
+						}
+					}
+				}
+
+				vtkSmartPointer<vtkXMLImageDataWriter> writer =
+					vtkSmartPointer<vtkXMLImageDataWriter>::New();
+				writer->SetInputConnection(imgstenc->GetOutputPort());
 				writer->SetFileName(pOut.string().c_str());
 				writer->Write();
 			}
@@ -254,10 +275,10 @@ int main(int argc, char** argv) {
 			// V = Nd^3
 			// Calculate the discretized volume and effective radius
 			data.discretized_volume_cm3 = data.numIceLatticeSites * std::pow(data.resolution_mm / 10., 3.);
-			double dv_um3 = data.discretized_volume_cm3 * std::pow(10000., 3);
+			//double dv_um3 = data.discretized_volume_cm3 * std::pow(10000., 3);
 			const double pi = 3.141592654;
-			data.aeff_um = 3. * dv_um3 / 4. * pi;
-
+			double aeff_cm = 3. * data.discretized_volume_cm3 / 4. * pi;
+			data.aeff_um = aeff_cm * 10000.;
 			data.write(canal);
 		}
 		
