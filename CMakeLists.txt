@@ -10,6 +10,7 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(addBaseProject)
 include(addBoostUniform)
 include(addapp)
+include(addlib)
 include(generaterc)
 include(GetGitRevisionDescription)
 
@@ -29,14 +30,25 @@ configure_file (
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 #find_package(Eigen3 REQUIRED)
+find_package(VTK REQUIRED)
+include(${VTK_USE_FILE})
 
+generaterc("prog1" "exe"
+	"snowflakes"
+	"Program to convert Andy's surface meshes into solid volume representations"
+	 "${CMAKE_CURRENT_BINARY_DIR}/prog1.rc"
+	 )
 set (prog1_srcs prog1.cpp)
 IF (WIN32 AND NOT CYGWIN)
-SET(srcs ${srcs} 
-	"${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+SET(prog1_srcs ${prog1_srcs} 
+	"${CMAKE_CURRENT_BINARY_DIR}/prog1.rc")
 ENDIF()
 
-add_executable(prog1 ${srcs})
-#target_link_libraries(prog1 libicedb)
+add_executable(prog1 MACOSX_BUNDLE ${prog1_srcs})
+if(VTK_LIBRARIES)
+  target_link_libraries(prog1 ${VTK_LIBRARIES})
+else()
+  target_link_libraries(prog1 vtkHybrid vtkWidgets)
+endif()
 addapp(prog1 Main)
 storebin(prog1)
