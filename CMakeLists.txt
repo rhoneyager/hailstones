@@ -7,6 +7,12 @@ set(CMAKE_MODULE_PATH
 )
 set(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
+if (NOT WIN32)
+	if (NOT CMAKE_BUILD_TYPE)
+	  set (CMAKE_BUILD_TYPE "RelWithDebInfo")
+	endif (NOT CMAKE_BUILD_TYPE)
+endif (NOT WIN32)
+
 include(addBaseProject)
 include(addBoostUniform)
 include(addapp)
