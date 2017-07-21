@@ -33,6 +33,25 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
+
+set (boost_uniform_libs program_options filesystem system)
+addBoostUniform(${boost_uniform_libs})
+include_directories(BEFORE SYSTEM ${Boost_INCLUDE_DIR})
+link_directories(${Boost_LIBRARY_DIR})
+if(VTK_LIBRARIES)
+  set(app-libs ${VTK_LIBRARIES})
+else()
+  set(app-libs vtkHybrid vtkWidgets)
+endif()
+if(WIN32 AND NOT CYGWIN)
+else()
+	set (app-libs ${app-libs}
+		${Boost_FILESYSTEM_LIBRARY}
+		${Boost_SYSTEM_LIBRARY}
+		${Boost_PROGRAM_OPTIONS_LIBRARY}
+		)
+endif()
+
 generaterc("prog1" "exe"
 	"snowflakes"
 	"Program to convert Andy's surface meshes into solid volume representations"
@@ -45,10 +64,6 @@ SET(prog1_srcs ${prog1_srcs}
 ENDIF()
 
 add_executable(prog1 MACOSX_BUNDLE ${prog1_srcs})
-if(VTK_LIBRARIES)
-  target_link_libraries(prog1 ${VTK_LIBRARIES})
-else()
-  target_link_libraries(prog1 vtkHybrid vtkWidgets)
-endif()
+target_link_libraries(prog1 ${app-libs})
 addapp(prog1 Main)
 storebin(prog1)
