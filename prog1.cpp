@@ -52,7 +52,8 @@ int main(int argc, char** argv) {
 		using namespace boost::filesystem;
 		path pOutFolder(sOutFolder);
 		vector<string> vInputs = vm["input"].as<vector<string> >();
-		{
+		vector<path> veInputs;
+		{ // Validate and expand inputs.
 			while (is_symlink(pOutFolder)) pOutFolder = read_symlink(pOutFolder);
 			if (!exists(pOutFolder)) {
 				if (!create_directory(pOutFolder)) {
@@ -63,7 +64,6 @@ int main(int argc, char** argv) {
 				cerr << "Output path " << pOutFolder << " exists and is not a folder." << endl;
 				exit(3);
 			}
-
 			for (const auto &i : vInputs) {
 				path p(i);
 				while (is_symlink(p)) p = read_symlink(p);
@@ -71,16 +71,32 @@ int main(int argc, char** argv) {
 					cerr << "Input file " << p << " does not exist." << endl;
 					exit(3);
 				}
-				if (!is_regular_file(p)) {
+				if (is_directory(p)) {
+					// Iterate over one level of directory entries to get files.
+					// Useful when there are too many files for shell expansion, or on Windows.
+					vector<path> dircontents;
+					copy(directory_iterator(p), directory_iterator(),
+						back_inserter(dircontents));
+					for (const auto &di : dircontents) {
+						path dp(di);
+						while (is_symlink(dp)) dp = read_symlink(dp);
+						if (!exists(dp)) continue;
+						if (!is_regular_file(dp)) continue;
+						if (!dp.has_extension()) continue;
+						if (dp.extension().string() == ".stl") veInputs.push_back(dp);
+					}
+				} else if (is_regular_file(p)) {
+					if (!p.has_extension()) {
+						cerr << "Input file " << p << " is not an stl file." << endl;
+						exit(3);
+					}
+					if (p.extension().string() != ".stl") {
+						cerr << "Input file " << p << " is not an stl file." << endl;
+						exit(3);
+					}
+					veInputs.push_back(p);
+				} else {
 					cerr << "Input file " << p << " is not a regular file." << endl;
-					exit(3);
-				}
-				if (!p.has_extension()) {
-					cerr << "Input file " << p << " is not an stl file." << endl;
-					exit(3);
-				}
-				if (p.extension().string() != ".stl") {
-					cerr << "Input file " << p << " is not an stl file." << endl;
 					exit(3);
 				}
 			}
@@ -124,21 +140,20 @@ int main(int argc, char** argv) {
 		analysis_data::writeHeader(canal);
 		analysis_data data;
 
-		for (const auto &i : vInputs) {
-			path p(i);
+		for (const auto &p : veInputs) {
 			path pOut = pOutFolder / p.filename().replace_extension(path(".vti"));
 			cout << "\t" << p << " to " << pOut << endl;
 			if (exists(pOut) && !clobber) {
 				cout << "\t\tFile already exists. Skipping." << endl;
 				continue;
 			}
-			data.sIn = i;
+			data.sIn = p.string();
 			data.sOut = pOut.string();
 			data.sFileId = p.filename().replace_extension().string();
 
 			vtkSmartPointer<vtkSTLReader> reader =
 				vtkSmartPointer<vtkSTLReader>::New();
-			reader->SetFileName(i.c_str());
+			reader->SetFileName(p.string().c_str());
 			reader->Update();
 
 			vtkSmartPointer<vtkPolyData> pd = reader->GetOutput();
