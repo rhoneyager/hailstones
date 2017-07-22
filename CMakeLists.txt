@@ -73,3 +73,19 @@ add_executable(prog1 MACOSX_BUNDLE ${prog1_srcs})
 target_link_libraries(prog1 ${app-libs})
 addapp(prog1 Main)
 storebin(prog1)
+
+generaterc("prog2a" "exe"
+	"snowflakes"
+	"Program to read solid volume meshes and decimate according to a table of known masses for the same particles"
+	 "${CMAKE_CURRENT_BINARY_DIR}/prog2a.rc"
+	 )
+set (prog2a_srcs prog2a.cpp)
+IF (WIN32 AND NOT CYGWIN)
+SET(prog2a_srcs ${prog2a_srcs} 
+	"${CMAKE_CURRENT_BINARY_DIR}/prog2a.rc")
+ENDIF()
+
+add_executable(prog2a MACOSX_BUNDLE ${prog2a_srcs})
+target_link_libraries(prog2a ${app-libs})
+addapp(prog2a Main)
+storebin(prog2a)
