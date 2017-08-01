@@ -132,11 +132,11 @@ int main(int argc, char** argv) {
 				}
 				else if (is_regular_file(p)) {
 					if (!p.has_extension()) {
-						cerr << "Input file " << p << " is not an stl file." << endl;
+						cerr << "Input file " << p << " is not a vti file." << endl;
 						exit(3);
 					}
-					if (p.extension().string() != ".stl") {
-						cerr << "Input file " << p << " is not an stl file." << endl;
+					if (p.extension().string() != ".vti") {
+						cerr << "Input file " << p << " is not a vti file." << endl;
 						exit(3);
 					}
 					veInputs.push_back(p);

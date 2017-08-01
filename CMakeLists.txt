@@ -89,3 +89,19 @@ add_executable(prog2a MACOSX_BUNDLE ${prog2a_srcs})
 target_link_libraries(prog2a ${app-libs})
 addapp(prog2a Main)
 storebin(prog2a)
+
+generaterc("prog3" "exe"
+	"snowflakes"
+	"Program to read volume meshes and write DDSCAT shape files"
+	 "${CMAKE_CURRENT_BINARY_DIR}/prog3.rc"
+	 )
+set (prog3_srcs prog3.cpp)
+IF (WIN32 AND NOT CYGWIN)
+SET(prog3_srcs ${prog3_srcs} 
+	"${CMAKE_CURRENT_BINARY_DIR}/prog3.rc")
+ENDIF()
+
+add_executable(prog3 MACOSX_BUNDLE ${prog3_srcs})
+target_link_libraries(prog3 ${app-libs})
+addapp(prog3 Main)
+storebin(prog3)
