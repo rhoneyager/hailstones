@@ -90,18 +90,34 @@ target_link_libraries(prog2a ${app-libs})
 addapp(prog2a Main)
 storebin(prog2a)
 
-generaterc("prog3" "exe"
+generaterc("prog3a" "exe"
 	"snowflakes"
 	"Program to read volume meshes and write DDSCAT shape files"
-	 "${CMAKE_CURRENT_BINARY_DIR}/prog3.rc"
+	 "${CMAKE_CURRENT_BINARY_DIR}/prog3a.rc"
 	 )
-set (prog3_srcs prog3.cpp)
+set (prog3a_srcs prog3a.cpp)
 IF (WIN32 AND NOT CYGWIN)
-SET(prog3_srcs ${prog3_srcs} 
-	"${CMAKE_CURRENT_BINARY_DIR}/prog3.rc")
+SET(prog3a_srcs ${prog3a_srcs} 
+	"${CMAKE_CURRENT_BINARY_DIR}/prog3a.rc")
 ENDIF()
 
-add_executable(prog3 MACOSX_BUNDLE ${prog3_srcs})
-target_link_libraries(prog3 ${app-libs})
-addapp(prog3 Main)
-storebin(prog3)
+add_executable(prog3a MACOSX_BUNDLE ${prog3a_srcs})
+target_link_libraries(prog3a ${app-libs})
+addapp(prog3a Main)
+storebin(prog3a)
+
+generaterc("prog3b" "exe"
+	"snowflakes"
+	"Program to read volume meshes and write DDSCAT shape files"
+	 "${CMAKE_CURRENT_BINARY_DIR}/prog3b.rc"
+	 )
+set (prog3b_srcs prog3b.cpp)
+IF (WIN32 AND NOT CYGWIN)
+SET(prog3b_srcs ${prog3b_srcs} 
+	"${CMAKE_CURRENT_BINARY_DIR}/prog3b.rc")
+ENDIF()
+
+add_executable(prog3b MACOSX_BUNDLE ${prog3b_srcs})
+target_link_libraries(prog3b ${app-libs})
+addapp(prog3b Main)
+storebin(prog3b)
