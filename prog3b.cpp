@@ -1,4 +1,5 @@
 #include <boost/filesystem.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
@@ -15,6 +16,9 @@
 #include <random>
 #include <string>
 #include <vector>
+#include "refract.h"
+
+/// Program 3b takes vti shape files and generates DDSCAT runs based on the provided temperature and frequency.
 
 int main(int argc, char** argv) {
 	using namespace std;
@@ -23,19 +27,25 @@ int main(int argc, char** argv) {
 		po::options_description desc("Allowed options");
 		desc.add_options()
 			("help,h", "Produce this help message.")
-			("resolution,r", po::value<double>()->default_value(0.6), "Resolution of output mesh lattices (mm).")
+			("resolution,r", po::value<string>()->default_value("0.6"), "Resolution of output mesh lattices (mm).")
 			("input,i", po::value<vector<string> >()->multitoken(), "Input vti files.")
-			("output,o", po::value<string>()->default_value("."), "Output folder for the DDSCAT shape files.")
+			("output,o", po::value<string>()->default_value("."), "Output base folder for the DDSCAT runs. Each run is placed in a uniquely-named subfolder.")
 			("clobber,c", "Overwrite existing files.")
+			("temperature,t", po::value<string>()->default_value("270"), "Temperature (in K) for refractive index calculations.")
+			("frequency,f", po::value<string>()->default_value("13.6"), "Frequency, in GHz")
+			("num-betas", po::value<unsigned short>()->default_value(12), "Number of orientation in Beta direction.")
+			("num-thetas", po::value<unsigned short>()->default_value(13), "Number of orientation in Theta direction.")
+			("num-phis", po::value<unsigned short>()->default_value(12), "Number of orientation in Phi direction.")
 			;
-		po::positional_options_description pos;
-		pos.add("input", -1);
 		po::variables_map vm;
 		po::store(po::command_line_parser(argc, argv).
-			options(desc).positional(pos).run(), vm);
+			options(desc).run(), vm);
 		po::notify(vm);
 		auto doHelp = [&]()
 		{
+			std::cerr << "This program takes a volumetric shape file (.vti), a frequency (GHz) and "
+				"a temperature (K), and generates the files needed to start a DDSCAT run. DDSCAT is "
+				"used to deterine the radiative properties of the particle." << std::endl;
 			std::cerr << desc << std::endl;
 			exit(2);
 		};
@@ -46,6 +56,20 @@ int main(int argc, char** argv) {
 		bool clobber = false;
 		if (vm.count("clobber")) clobber = true;
 		string sOutFolder = vm["output"].as<string>();
+		unsigned short nb = vm["num-betas"].as<unsigned short>();
+		unsigned short nt = vm["num-thetas"].as<unsigned short>();
+		unsigned short np = vm["num-phis"].as<unsigned short>();
+		string stempK = vm["temperature"].as<string>();
+		string sfreqGHz = vm["frequency"].as<string>();
+		string sres_mm = vm["resolution"].as<string>();
+		double tempK = boost::lexical_cast<double>(stempK), freqGHz = boost::lexical_cast<double>(sfreqGHz),
+			res_mm = boost::lexical_cast<double>(sres_mm);
+		complex<double> m;
+		mIceMatzler(freqGHz, tempK, m);
+		const double c = 2.9979e8;
+		const double wvlen_mm = c / (freqGHz * 1000 * 1000);
+		const double pi = 3.141592654;
+
 		using namespace boost::filesystem;
 		path pOutFolder(sOutFolder);
 		vector<string> vInputs = vm["input"].as<vector<string> >();
@@ -104,8 +128,40 @@ int main(int argc, char** argv) {
 		// Input is validated. Now, to loop over each file and process.
 
 		for (const boost::filesystem::path &p : veInputs) {
-			path pOut = pOutFolder / p.filename().replace_extension(path(".shp"));
+			string sRun = p.filename().replace_extension(path("")).string();
+			sRun = sRun + "_" + sfreqGHz + "_" + stempK
+				+ "_" + boost::lexical_cast<string>(nb)
+				+ "_" + boost::lexical_cast<string>(nt)
+				+ "_" + boost::lexical_cast<string>(np);
+			path pOut = pOutFolder / path(sRun);
+			path pOutShp = pOut / path("shape.dat");
+			path pOutDiel = pOut / path("diel.tab");
+			path pOutPar = pOut / path("ddscat.par");
 			cout << p << " to " << pOut << endl;
+			if (exists(pOut)) {
+				path pSym = pOut;
+				while (is_symlink(pSym)) pSym = read_symlink(pSym);
+				if (exists(pSym)) {
+					if (is_directory(pSym)) {
+						if (!clobber) {
+							cerr << "Directory " << pSym << " already exists, and not clobbering." << endl;
+							exit(4);
+						}
+					}
+				} else {
+					bool res = boost::filesystem::create_directory(pSym);
+					if (!res) {
+						cerr << "Could not create " << pSym << endl;
+						exit(4);
+					}
+				}
+			} else {
+				bool res = boost::filesystem::create_directory(pOut);
+				if (!res) {
+					cerr << "Could not create " << pOut << endl;
+					exit(4);
+				}
+			}
 
 			vtkSmartPointer<vtkXMLImageDataReader> reader =
 				vtkSmartPointer<vtkXMLImageDataReader>::New();
@@ -136,30 +192,12 @@ int main(int argc, char** argv) {
 			c[1] /= (double)numIceLatticeSites;
 			c[2] /= (double)numIceLatticeSites;
 
-			// Open the output file, write the header and then write the points.
-			std::ofstream out(pOut.string().c_str());
-			out << "From " << p.filename() << endl;
-			out << "\t" << numIceLatticeSites << "\t= NAT" << endl;
-			out << "\t1.0\t0.0\t0.0 =\tvector" << endl
-				<< "\t0.0\t1.0\t0.0 =\tvector" << endl
-				<< "\t1.0\t1.0\t1.0 =\tlattice spacings (d_x,d_y,d_z)/d" << endl
-				<< "\t" << c[0] << "\t" << c[1] << "\t" << c[2] << " =\tlattice offset" << endl
-				<< "\tJA\tIX\tIY\tIZ\tICOMP(x, y, z)" << endl;
-			size_t i = 0;
-			for (int z = 0; z < dims[2]; z++)
-			{
-				for (int y = 0; y < dims[1]; y++)
-				{
-					for (int x = 0; x < dims[0]; x++)
-					{
-						double pixel = (imgd->GetScalarComponentAsDouble(x, y, z, 0));
-						if (pixel > 0.1) {
-							++i;
-							out << "\t" << i << "\t" << x << "\t" << y << "\t" << z << "\t\t1\t1\t1\n";
-						}
-					}
-				}
-			}
+			double V_mm3 = pow(resolution_mm, 3.) * (double) numIceLatticeSites;
+			double aeff_mm = pow(3.*V_mm3 / 4. * pi, 1. / 3.);
+
+			writeShp(pOutShp.string().c_str(), pOut.filename().string().c_str(), imgd, c, numIceLatticeSites);
+			writeDiel(pOutDiel.string().c_str(), m);
+			writePar(pOutPar.string().c_str(), wvlen_mm, aeff_mm, nb, nt, np);
 		}
 
 	}

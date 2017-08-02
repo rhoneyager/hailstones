@@ -111,7 +111,7 @@ generaterc("prog3b" "exe"
 	"Program to read volume meshes and write DDSCAT shape files"
 	 "${CMAKE_CURRENT_BINARY_DIR}/prog3b.rc"
 	 )
-set (prog3b_srcs prog3b.cpp)
+set (prog3b_srcs prog3b.cpp refract.cpp refract.h)
 IF (WIN32 AND NOT CYGWIN)
 SET(prog3b_srcs ${prog3b_srcs} 
 	"${CMAKE_CURRENT_BINARY_DIR}/prog3b.rc")
