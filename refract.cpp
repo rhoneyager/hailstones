@@ -56,7 +56,19 @@ void writeShp(const char* file, const char* desc, vtkSmartPointer<vtkImageData> 
 }
 
 void writeDiel(const char* file, std::complex<double>& r) {
-	throw;
+	using namespace std;
+	ofstream out(file);
+	//out.setf( ios::scientific, ios::floatfield);
+	//out.precision(7);
+	//out.unsetf(ios_base::floatfield);
+	double rr = r.real();
+	double ri = (-1.0 * abs(r.imag()));
+	out << " m = " << rr << " + " << ri << " i" << endl;
+	out << " 0 1 2" << endl;
+	out << " = columns for wave, Re(m), Im(m)" << endl;
+	out << " 0.000001    " << rr << "      " << ri << endl;
+	out << " 1.000000    " << rr << "      " << ri << endl;
+	out << " 100000.0    " << rr << "      " << ri << endl;
 }
 
 void writePar(const char* file, double wvlen_mm, double aeff_mm, unsigned short nb, unsigned short nt, unsigned short np) {
