@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
 
 			writeShp(pOutShp.string().c_str(), pOut.filename().string().c_str(), imgd, c, numIceLatticeSites);
 			writeDiel(pOutDiel.string().c_str(), m);
-			writePar(pOutPar.string().c_str(), wvlen_mm, aeff_mm, nb, nt, np);
+			writePar(pOutPar.string().c_str(), wvlen_mm, aeff_mm, nb, nt, np, dims);
 		}
 
 	}
