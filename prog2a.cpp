@@ -201,6 +201,7 @@ int main(int argc, char** argv) {
 			path p = i.first;
 			path pOut = pOutFolder / p.filename().replace_extension(path(".vti"));
 			cout << p << " to " << pOut << endl;
+			data.sFileId = i.first.filename().replace_extension().string();
 			if (mass_g < 0) {
 				cout << "\tSkipping as there is no valid mass." << endl;
 				continue;

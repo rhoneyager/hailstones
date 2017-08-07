@@ -25,18 +25,21 @@ void mIceMatzler(double f, double t, std::complex<double> &m)
 	m = sqrt(e);
 }
 
-void writeShp(const char* file, const char* desc, vtkSmartPointer<vtkImageData> imgd, double c[3], size_t numIceLatticeSites) {
+void writeShp(const char* file, const char* desc, 
+	vtkSmartPointer<vtkImageData> imgd, double c[3], size_t numIceLatticeSites,
+	const char* res
+) {
 	// Open the output file, write the header and then write the points.
 	std::ofstream out(file);
 	if (desc)
-		out << desc << endl;
+		out << desc << ", at resolution of " << res << " mm" << endl;
 	else throw;
 	out << "\t" << numIceLatticeSites << "\t= NAT" << endl;
 	out << "\t1.0\t0.0\t0.0 =\tvector" << endl
 		<< "\t0.0\t1.0\t0.0 =\tvector" << endl
 		<< "\t1.0\t1.0\t1.0 =\tlattice spacings (d_x,d_y,d_z)/d" << endl
 		<< "\t" << c[0] << "\t" << c[1] << "\t" << c[2] << " =\tlattice offset" << endl
-		<< "\tJA\tIX\tIY\tIZ\tICOMP(x, y, z)" << endl;
+		<< "JA\tIX\tIY\tIZ\tICOMP(x, y, z)" << endl;
 	size_t i = 0;
 	int* dims = imgd->GetDimensions();
 	for (int z = 0; z < dims[2]; z++)
@@ -48,24 +51,24 @@ void writeShp(const char* file, const char* desc, vtkSmartPointer<vtkImageData> 
 				double pixel = (imgd->GetScalarComponentAsDouble(x, y, z, 0));
 				if (pixel > 0.1) {
 					++i;
-					out << "\t" << i << "\t" << x << "\t" << y << "\t" << z << "\t\t1\t1\t1\n";
+					out << i << "\t" << x << "\t" << y << "\t" << z << "\t\t1\t1\t1\n";
 				}
 			}
 		}
 	}
 }
 
-void writeDiel(const char* file, std::complex<double>& r) {
+void writeDiel(const char* file, std::complex<double>& r, const char* f, const char* t) {
 	using namespace std;
 	ofstream out(file);
 	//out.setf( ios::scientific, ios::floatfield);
 	//out.precision(7);
 	//out.unsetf(ios_base::floatfield);
 	double rr = r.real();
-	double ri = (-1.0 * abs(r.imag()));
-	out << " m = " << rr << " + " << ri << " i" << endl;
-	out << " 0 1 2" << endl;
-	out << " = columns for wave, Re(m), Im(m)" << endl;
+	double ri = (1.0 * abs(r.imag()));
+	out << " Diels for f = " << f << " GHz, T = " << t << " K (m = " << rr << " + " << ri << " i)" << endl;
+	out << " 1 2 3 0 0 = columns for wave, Re(m), Im(m)" << endl;
+	out << " LAMBDA\tRe(M)\tIm(M)" << endl;
 	out << " 0.000001    " << rr << "      " << ri << endl;
 	out << " 1.000000    " << rr << "      " << ri << endl;
 	out << " 100000.0    " << rr << "      " << ri << endl;

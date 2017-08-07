@@ -49,7 +49,6 @@ int main(int argc, char** argv) {
 			std::cerr << desc << std::endl;
 			exit(2);
 		};
-		double resolution_mm = vm["resolution"].as<double>();
 
 		if (vm.count("help")) doHelp();
 		if (!vm.count("input")) doHelp();
@@ -181,10 +180,12 @@ int main(int argc, char** argv) {
 					for (int x = 0; x < dims[0]; x++)
 					{
 						double pixel = (imgd->GetScalarComponentAsDouble(x, y, z, 0));
-						if (pixel > 0.1) numIceLatticeSites++;
-						c[0] += x;
-						c[1] += y;
-						c[2] += z;
+						if (pixel > 0.1) {
+							numIceLatticeSites++;
+							c[0] += x;
+							c[1] += y;
+							c[2] += z;
+						}
 					}
 				}
 			}
@@ -192,11 +193,13 @@ int main(int argc, char** argv) {
 			c[1] /= (double)numIceLatticeSites;
 			c[2] /= (double)numIceLatticeSites;
 
-			double V_mm3 = pow(resolution_mm, 3.) * (double) numIceLatticeSites;
+			double V_mm3 = pow(res_mm, 3.) * (double) numIceLatticeSites;
 			double aeff_mm = pow(3.*V_mm3 / 4. * pi, 1. / 3.);
 
-			writeShp(pOutShp.string().c_str(), pOut.filename().string().c_str(), imgd, c, numIceLatticeSites);
-			writeDiel(pOutDiel.string().c_str(), m);
+			writeShp(pOutShp.string().c_str(), 
+				p.filename().replace_extension(path("")).string().c_str(), 
+				imgd, c, numIceLatticeSites, sres_mm.c_str());
+			writeDiel(pOutDiel.string().c_str(), m, sfreqGHz.c_str(), stempK.c_str());
 			writePar(pOutPar.string().c_str(), wvlen_mm, aeff_mm, nb, nt, np, dims);
 		}
 
