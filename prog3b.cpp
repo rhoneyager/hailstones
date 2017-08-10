@@ -193,8 +193,8 @@ int main(int argc, char** argv) {
 			c[1] /= (double)numIceLatticeSites;
 			c[2] /= (double)numIceLatticeSites;
 
-			double V_mm3 = pow(res_mm, 3.) * (double) numIceLatticeSites;
-			double aeff_mm = pow(3.*V_mm3 / 4. * pi, 1. / 3.);
+			double V_mm3 = std::pow<double,double>(res_mm, 3.) * (double) numIceLatticeSites;
+			double aeff_mm = std::pow<double,double>(3.*V_mm3 / (4. * pi), 1. / 3.);
 
 			writeShp(pOutShp.string().c_str(), 
 				p.filename().replace_extension(path("")).string().c_str(), 
