@@ -2,7 +2,7 @@
 
 Codes for modeling hailstone structural and electromagnetic scattering properties from stereolithographic measurements.
 
-![Picture of a modeled hailstone](./Hailstone%20example.PNG?raw=true)
+![Picture of a modeled hailstone](./hailstone.png?raw=true)
 
 ## Building
 
