@@ -19,6 +19,6 @@ Requirements:
 ## The Programs
 
 ### Prog1 - Read STL surface meshes and generate volumetric meshes
-### Prog2 - Take volumetric meshes and scale them to that they match the measured hailstone masses / densities.
+### Prog2 - Take volumetric meshes and scale them to match the measured hailstone masses / densities.
 ### Prog3a - Convert the volumetric meshes into [DDSCAT](http://ddscat.wikidot.com/) shape files
 ### Prog3b - Convert the volumetric meshes into [DDSCAT](http://ddscat.wikidot.com/) runs at desired spectral frequency and temperature.
